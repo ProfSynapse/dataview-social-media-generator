@@ -1,0 +1,397 @@
+# LM Studio
+```dataviewjs
+// Define the local LM Studio server URL and the model you want to use
+const LM_STUDIO_URL = 'http://localhost:1234/v1/chat/completions'; // Adjust the port if necessary
+const MODEL_ID = 'TheBloke/phi-2-GGUF/phi-2.Q4_K_S.gguf'; // Replace with your loaded model's ID
+
+// Mapping platforms to callout types for different symbols
+const calloutTypes = {
+    'LinkedIn': 'info',
+    'Instagram': 'warning',
+    'YouTube': 'tip',
+    'ImageDescription': 'note'
+};
+
+console.log("Script started");
+
+// Create a container div to hold the button
+const container = dv.el('div', '', { attr: { style: 'margin-bottom: 20px;' } });
+const button = dv.el('button', 'Generate Social Media', {
+    attr: {
+        style: 'padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px;'
+    },
+    parent: container
+});
+
+console.log("Button created");
+
+// Function to call LM Studio API and generate content based on the platform
+async function generateSocialMedia(content, platform) {
+    console.log(`Generating content for ${platform}`);
+    let prompt = '';
+    switch (platform) {
+        case 'LinkedIn':
+            prompt = `Professor Synapse, I need your help creating a LinkedIn post for Synaptic Labs. Here's what I need:
+
+Role: You are our professional content creator for LinkedIn.
+Expertise: Crafting engaging, informative posts that resonate with professionals and thought leaders in the AI industry.
+Context: Synaptic Labs is dedicated to democratizing AI education and empowering individuals and businesses to harness the power of AI responsibly and effectively.
+Responsibility: Create a post that educates, inspires, and encourages professional engagement around our AI educational content.
+
+Instructions:
+1. Start with a thought-provoking question or statistic from the content.
+2. Summarize 2-3 key insights in concise points.
+3. Explain the professional relevance or application of these insights.
+4. End with a call-to-action for further learning or discussion.
+5. Include 3-5 relevant hashtags.
+
+Aim for a medium-length post, typically 2-3 paragraphs. Use your professional yet approachable tone. Here's the content to base it on:
+
+${content}`;
+            break;
+        case 'Instagram':
+            prompt = `Professor Synapse, we need your expertise for an Instagram caption. Here's what I'm looking for:
+
+Role: You're our creative caption writer for Instagram.
+Expertise: Crafting concise, attention-grabbing captions that simplify the content provided and encourage engagement.
+Context: Synaptic Labs aims to make AI education accessible and exciting for a diverse audience, from curious beginners to tech enthusiasts.
+Responsibility: Create a caption that sparks curiosity about AI, reflects our brand's approachable nature, and encourages interaction with our content.
+
+Instructions:
+1. Begin with an attention-grabbing statement or question.
+2. Summarize the main idea in 1-2 compelling sentences.
+3. Share one practical tip or interesting fact about AI.
+4. Use emojis strategically to add visual interest and emphasize key points.
+5. End with an open-ended question to encourage comments.
+6. Include 5-7 relevant hashtags.
+
+Keep the caption concise, typically 3-5 sentences plus hashtags. Maintain a friendly, enthusiastic tone. Here's the content to work with:
+
+${content}`;
+            break;
+        case 'YouTube':
+            prompt = `Greetings, Professor Synapse! We need your skills for a YouTube video description. Here's the brief:
+
+Role: You're our YouTube content strategist.
+Expertise: Writing compelling video descriptions that improve discoverability and encourage viewers to watch and engage.
+Context: Synaptic Labs creates educational AI content for a wide audience, from AI beginners to advanced practitioners, aiming to empower people with practical AI knowledge.
+Responsibility: Craft a description that entices viewers to watch, clearly communicates the value of the video, and encourages channel engagement.
+
+Instructions:
+1. Start with a hook - a fascinating fact or question related to the video content.
+2. Provide a brief overview of what viewers will learn, using 3-4 bullet points.
+3. Mention any additional resources or materials discussed in the video.
+4. End with a clear call-to-action for likes, subscriptions, and comments.
+5. Add 3-5 relevant hashtags at the end.
+6. Omit all markdown elements, which cannot be rendered in YouTube.
+
+Aim for a comprehensive description, typically 4-6 paragraphs. Balance informative content with an inviting tone. Here's the content to base it on:
+
+${content}`;
+            break;
+        case 'ImageDescription':
+            prompt = `Professor Synapse, I need your creative writing skills for an AI-related image description. Here's what I'm after:
+
+Role: You're our visual content interpreter.
+Expertise: Translating complex content into vivid, engaging written descriptions that complement visual content.
+Context: Synaptic Labs uses imagery to make AI concepts more tangible and exciting, supporting our mission to make AI education accessible and inspiring.
+Responsibility: Create a description that paints a clear picture of the image while highlighting its relevance to AI education and Synaptic Labs' mission.
+
+Instructions:
+1. Set the scene with a brief, evocative opening sentence.
+2. Detail the main elements, focusing on how they represent key information from the content.
+3. Describe any text or symbols, capturing the essence of the main message.
+4. Include colors, shapes, or visual metaphors that relate to the content.
+5. Conclude with how the image reflects Synaptic Labs' mission or values.
+
+Keep the description concise but vivid, typically 3-5 sentences. Use language that's both precise and inspiring. Here's the content to inspire the image:
+
+${content}`;
+            break;
+        default:
+            prompt = content;
+    }
+
+    try {
+        console.log(`Sending request to LM Studio for ${platform}`);
+        const response = await fetch(LM_STUDIO_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+                // No Authorization header needed for local LM Studio server
+            },
+            body: JSON.stringify({
+                model: MODEL_ID, // Specify the loaded model
+                messages: [
+                    { role: "system", content: "You are a helpful assistant that creates social media content." },
+                    { role: "user", content: prompt }
+                ],
+                max_tokens: 500,
+                temperature: 0.7
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`LM Studio API error: ${errorData.error.message || response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log(`Received response for ${platform}`);
+        return data.choices[0].message.content.trim();
+    } catch (error) {
+        console.error(`Error generating ${platform} content:`, error);
+        return `Error generating ${platform} content: ${error.message}`;
+    }
+}
+
+// Function to create a callout block in Markdown
+function createCalloutBlock(type, content) {
+    console.log(`Creating callout block for ${type}`);
+    const calloutType = calloutTypes[type] || 'info';
+    // Escape existing '>' characters
+    const escapedContent = content.replace(/^>/gm, '\\>');
+    // Add '>' before each line
+    const contentWithQuotes = escapedContent.replace(/^/gm, '>');
+    return `> [!${calloutType}]- ${type}\n${contentWithQuotes}\n\n`;
+}
+
+// Function to insert generated content after front matter
+function insertAfterFrontMatter(content, generated) {
+    const frontMatterRegex = /^---\n[\s\S]*?\n---\n/;
+    const match = content.match(frontMatterRegex);
+    if (match) {
+        const endOfFrontMatter = match[0].length;
+        return content.slice(0, endOfFrontMatter) + '\n' + generated + '\n' + content.slice(endOfFrontMatter);
+    } else {
+        // If no front matter, insert at the top
+        return generated + '\n' + content;
+    }
+}
+
+// Event listener for the button click
+button.addEventListener('click', async () => {
+    console.log("Button clicked");
+    button.disabled = true;
+    button.textContent = 'Generating...';
+
+    try {
+        const file = app.workspace.getActiveFile();
+        if (!file) {
+            new Notice('No active file found.');
+            return;
+        }
+        console.log("Current file:", file.path);
+        const content = await app.vault.read(file);
+        console.log("File content loaded");
+
+        console.log("Generating social media content");
+        const [linkedin, instagram, youtube, imageDescription] = await Promise.all([
+            generateSocialMedia(content, 'LinkedIn'),
+            generateSocialMedia(content, 'Instagram'),
+            generateSocialMedia(content, 'YouTube'),
+            generateSocialMedia(content, 'ImageDescription')
+        ]);
+
+        console.log("Social media content generated");
+
+        const generatedContents = {
+            'LinkedIn': linkedin,
+            'Instagram': instagram,
+            'YouTube': youtube,
+            'ImageDescription': imageDescription
+        };
+
+        // Check if any platform failed
+        for (const platform of Object.keys(generatedContents)) {
+            if (!generatedContents[platform] || generatedContents[platform].startsWith('Error')) {
+                console.warn(`Content for ${platform} is missing or errored.`);
+            }
+        }
+
+        // Create modal overlay
+        const modalOverlay = document.createElement('div');
+        modalOverlay.style.position = 'fixed';
+        modalOverlay.style.top = '0';
+        modalOverlay.style.left = '0';
+        modalOverlay.style.width = '100%';
+        modalOverlay.style.height = '100%';
+        modalOverlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        modalOverlay.style.display = 'flex';
+        modalOverlay.style.justifyContent = 'center';
+        modalOverlay.style.alignItems = 'center';
+        modalOverlay.style.zIndex = '1000';
+
+        document.body.appendChild(modalOverlay);
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.classList.add('modal', 'mod-obsidian');
+        modal.style.position = 'relative';
+        modal.style.backgroundColor = 'var(--background-primary)';
+        modal.style.padding = '20px';
+        modal.style.borderRadius = '10px';
+        modal.style.width = '80%';
+        modal.style.maxWidth = '800px';
+        modal.style.maxHeight = '80%';
+        modal.style.overflowY = 'auto';
+        modal.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+
+        modalOverlay.appendChild(modal);
+
+        // Add the 'X' close button
+        createCloseButton(modal, modalOverlay);
+
+        // Create a heading for the modal
+        const heading = document.createElement('h2');
+        heading.textContent = 'Edit Generated Social Media Content';
+        modal.appendChild(heading);
+
+        // Create separate textareas for each platform
+        const platforms = ['LinkedIn', 'Instagram', 'YouTube', 'ImageDescription'];
+        const textareas = {};
+
+        platforms.forEach(platform => {
+            // Create label
+            const label = document.createElement('label');
+            label.textContent = platform;
+            label.style.display = 'block';
+            label.style.marginTop = '15px';
+            label.style.marginBottom = '5px';
+            label.style.fontWeight = 'bold';
+            modal.appendChild(label);
+
+            // Create textarea
+            const textarea = document.createElement('textarea');
+            textarea.style.width = '100%';
+            textarea.style.height = '100px';
+            textarea.style.marginBottom = '10px';
+            textarea.style.fontFamily = 'monospace';
+            textarea.style.padding = '10px';
+            textarea.style.border = '1px solid #ccc';
+            textarea.style.borderRadius = '5px';
+            textarea.value = generatedContents[platform] !== undefined ? generatedContents[platform] : '';
+            modal.appendChild(textarea);
+
+            textareas[platform] = textarea;
+        });
+
+        // Create button container
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.display = 'flex';
+        buttonContainer.style.justifyContent = 'flex-end';
+        buttonContainer.style.gap = '10px';
+        buttonContainer.style.marginTop = '20px';
+        modal.appendChild(buttonContainer);
+
+        // Add "Add Text" button
+        const addButton = document.createElement('button');
+        addButton.textContent = 'Add Text';
+        addButton.style.padding = '10px 20px';
+        addButton.style.fontSize = '16px';
+        addButton.style.cursor = 'pointer';
+        addButton.style.backgroundColor = '#4CAF50';
+        addButton.style.color = 'white';
+        addButton.style.border = 'none';
+        addButton.style.borderRadius = '5px';
+        buttonContainer.appendChild(addButton);
+
+        // Add "Revise" button
+        const reviseButton = document.createElement('button');
+        reviseButton.textContent = 'Revise';
+        reviseButton.style.padding = '10px 20px';
+        reviseButton.style.fontSize = '16px';
+        reviseButton.style.cursor = 'pointer';
+        reviseButton.style.backgroundColor = '#2196F3';
+        reviseButton.style.color = 'white';
+        reviseButton.style.border = 'none';
+        reviseButton.style.borderRadius = '5px';
+        buttonContainer.appendChild(reviseButton);
+
+        // Add "Cancel" button
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = 'Cancel';
+        cancelButton.style.padding = '10px 20px';
+        cancelButton.style.fontSize = '16px';
+        cancelButton.style.cursor = 'pointer';
+        cancelButton.style.backgroundColor = '#f44336';
+        cancelButton.style.color = 'white';
+        cancelButton.style.border = 'none';
+        cancelButton.style.borderRadius = '5px';
+        buttonContainer.appendChild(cancelButton);
+
+        console.log("Modal created and added to container");
+
+        // Event listener for "Add Text" button
+        addButton.addEventListener('click', async () => {
+            console.log("Add Text button clicked");
+            const combinedContent = platforms.map(platform =>
+                createCalloutBlock(platform, textareas[platform].value)
+            ).join('');
+
+            const finalContent = `# Social Media\n\n${combinedContent}`;
+            console.log("Final content to be added:", finalContent);
+
+            try {
+                const currentContent = await app.vault.read(file);
+                console.log("Current note content read");
+
+                const newContent = insertAfterFrontMatter(currentContent, finalContent);
+                console.log("New content prepared");
+
+                await app.vault.modify(file, newContent);
+                console.log("New content written to the note");
+
+                new Notice('Social media content added to the note.');
+            } catch (error) {
+                console.error('Error writing content to the note:', error);
+                new Notice('An error occurred while adding content to the note.');
+            } finally {
+                modalOverlay.remove();
+            }
+        });
+
+        // Event listener for "Revise" button
+        reviseButton.addEventListener('click', async () => {
+            console.log("Revise button clicked");
+            modalOverlay.remove();
+            button.click(); // Trigger the generation process again
+        });
+
+        // Event listener for "Cancel" button
+        cancelButton.addEventListener('click', () => {
+            console.log("Cancel button clicked");
+            modalOverlay.remove();
+        });
+
+    } catch (error) {
+        console.error('Error generating social media content:', error);
+        new Notice('An error occurred while generating content.');
+    } finally {
+        button.disabled = false;
+        button.textContent = 'Generate Social Media';
+    }
+});
+
+// Function to create the 'X' close button
+function createCloseButton(modal, modalOverlay) {
+    const closeButton = document.createElement('span');
+    closeButton.textContent = '✖';
+    closeButton.style.position = 'absolute';
+    closeButton.style.top = '10px';
+    closeButton.style.right = '15px';
+    closeButton.style.fontSize = '20px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.color = '#aaa';
+    modal.appendChild(closeButton);
+
+    closeButton.addEventListener('click', () => {
+        console.log("Close (X) button clicked");
+        modalOverlay.remove();
+    });
+
+    return closeButton;
+}
+
+console.log("Script setup complete");
+```
