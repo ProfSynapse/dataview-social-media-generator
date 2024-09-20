@@ -35,6 +35,7 @@ Before setting up the Social Media Generator, ensure you have the following:
 1. **Locate the Markdown File**: Find the `.md` file containing the Social Media Generator code block from the provider you prefer.
 2. **Copy the Entire Code Block**: Ensure you include the backticks and `dataviewjs` tag. It should look like this:
 
+   ```
    ```dataviewjs
    // Social Media Generator script goes here
    ```
